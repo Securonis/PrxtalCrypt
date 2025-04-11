@@ -32,7 +32,6 @@ import zlib
 from cryptography.hazmat.primitives.asymmetric import ec 
 
 # Version 1.2 Developer: root0emir
-# Developed for Securonis Linux 
 
 class FileEncryptionThread(QThread):
     progress = pyqtSignal(int)
@@ -134,7 +133,7 @@ class CryptoApp(QMainWindow):
         
         # Add logo
         logo_label = QLabel()
-        pixmap = QPixmap("pxrtaltext.png")
+        pixmap = QPixmap("/usr/share/icons/securonis/pxrtaltext.png")
         if not pixmap.isNull():
             pixmap = pixmap.scaled(330, 180, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
             logo_label.setPixmap(pixmap)
@@ -245,7 +244,7 @@ class CryptoApp(QMainWindow):
                     margin: 0px;
                 }
                 QComboBox::down-arrow {
-                    image: url(down_arrow.png);
+                    image: url(/usr/share/icons/securonis/down_arrow.png);
                     width: 12px;
                     height: 12px;
                     background-color: #16213e;
@@ -357,7 +356,7 @@ class CryptoApp(QMainWindow):
                 QCheckBox::indicator:checked {
                     background-color: #0f3460;
                     border: 1px solid #0f3460;
-                    image: url(tick.png);
+                    image: url(/usr/share/icons/securonis/tick.png);
                 }
                 QCheckBox::indicator:hover {
                     border: 1px solid #0f3460;
@@ -410,7 +409,7 @@ class CryptoApp(QMainWindow):
                     margin: 0px;
                 }
                 QComboBox::down-arrow {
-                    image: url(down_arrow.png);
+                    image: url(/usr/share/icons/securonis/down_arrow.png);
                     width: 12px;
                     height: 12px;
                     background-color: #2d2d2d;
@@ -522,7 +521,7 @@ class CryptoApp(QMainWindow):
                 QCheckBox::indicator:checked {
                     background-color: #3d3d3d;
                     border: 1px solid #3d3d3d;
-                    image: url(tick.png);
+                    image: url(/usr/share/icons/securonis/tick.png);
                 }
                 QCheckBox::indicator:hover {
                     border: 1px solid #3d3d3d;
@@ -575,7 +574,7 @@ class CryptoApp(QMainWindow):
                     margin: 0px;
                 }
                 QComboBox::down-arrow {
-                    image: url(down_arrow.png);
+                    image: url(/usr/share/icons/securonis/down_arrow.png);
                     width: 12px;
                     height: 12px;
                     background-color: #ffffff;
@@ -687,7 +686,7 @@ class CryptoApp(QMainWindow):
                 QCheckBox::indicator:checked {
                     background-color: #0d6efd;
                     border: 1px solid #0d6efd;
-                    image: url(tick.png);
+                    image: url(/usr/share/icons/securonis/tick.png);
                 }
                 QCheckBox::indicator:hover {
                     border: 1px solid #0d6efd;
@@ -740,7 +739,7 @@ class CryptoApp(QMainWindow):
                     margin: 0px;
                 }
                 QComboBox::down-arrow {
-                    image: url(down_arrow.png);
+                    image: url(/usr/share/icons/securonis/down_arrow.png);
                     width: 12px;
                     height: 12px;
                     background-color: #f8f9fa;
@@ -852,7 +851,7 @@ class CryptoApp(QMainWindow):
                 QCheckBox::indicator:checked {
                     background-color: #3498db;
                     border: 1px solid #3498db;
-                    image: url(tick.png);
+                    image: url(/usr/share/icons/securonis/tick.png);
                 }
                 QCheckBox::indicator:hover {
                     border: 1px solid #3498db;
@@ -882,7 +881,7 @@ class CryptoApp(QMainWindow):
         
         # Logo
         logo_label = QLabel()
-        pixmap = QPixmap("pxrtal.png")
+        pixmap = QPixmap("/usr/share/icons/securonis/pxrtal.png")
         if not pixmap.isNull():
             pixmap = pixmap.scaled(400, 200, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
             logo_label.setPixmap(pixmap)
@@ -1032,6 +1031,25 @@ class CryptoApp(QMainWindow):
             "Camellia"
         ])
         options_layout.addWidget(self.algo_combo)
+        
+        # Key file selection
+        key_layout = QHBoxLayout()
+        self.key_path_edit = QLineEdit()
+        self.key_path_edit.setReadOnly(True)
+        self.key_path_edit.setPlaceholderText("Select key file (for decryption)")
+        browse_key_btn = QPushButton("Browse Key")
+        browse_key_btn.clicked.connect(self.browse_key_file)
+        key_layout.addWidget(self.key_path_edit)
+        key_layout.addWidget(browse_key_btn)
+        options_layout.addLayout(key_layout)
+        
+        # Manual key input
+        manual_key_layout = QHBoxLayout()
+        self.manual_key_edit = QLineEdit()
+        self.manual_key_edit.setPlaceholderText("Or enter key manually")
+        self.manual_key_edit.setEchoMode(QLineEdit.EchoMode.Password)
+        manual_key_layout.addWidget(self.manual_key_edit)
+        options_layout.addLayout(manual_key_layout)
         
         self.compress_check = QCheckBox("Compress before encryption")
         options_layout.addWidget(self.compress_check)
@@ -1688,9 +1706,10 @@ class CryptoApp(QMainWindow):
                             
                         encrypted = encryptor.update(data) + encryptor.finalize()
                         
-                        # Save encrypted file
+                        # Save encrypted file with metadata
                         output_path = os.path.join(output_dir, f"{os.path.basename(file_path)}.enc")
                         with open(output_path, 'wb') as f:
+                            f.write(iv)  # Write IV first
                             f.write(encrypted)
                             
                         # Save key
@@ -1701,17 +1720,18 @@ class CryptoApp(QMainWindow):
                     elif algorithm == "ChaCha20-Poly1305":
                         key = os.urandom(32)
                         nonce = os.urandom(16)
-                        cipher = Cipher(algorithms.ChaCha20(key, nonce), modes.Poly1305())
+                        cipher = Cipher(algorithms.ChaCha20(key, nonce), None)
                         encryptor = cipher.encryptor()
                         
                         with open(file_path, 'rb') as f:
                             data = f.read()
                             
-                        encrypted = encryptor.update(data) + encryptor.finalize()
+                        encrypted = encryptor.update(data)
                         
-                        # Save encrypted file
+                        # Save encrypted file with metadata
                         output_path = os.path.join(output_dir, f"{os.path.basename(file_path)}.enc")
                         with open(output_path, 'wb') as f:
+                            f.write(nonce)  # Write nonce first
                             f.write(encrypted)
                             
                         # Save key
@@ -1753,25 +1773,72 @@ class CryptoApp(QMainWindow):
             QMessageBox.warning(self, "Warning", "Please select files to decrypt!")
             return
             
-        key, ok = QInputDialog.getText(self, "Key", "Enter key:")
-        if not ok or not key:
+        key = None
+        key_path = self.key_path_edit.text()
+        manual_key = self.manual_key_edit.text()
+        
+        if key_path:
+            try:
+                with open(key_path, 'rb') as key_file:
+                    key = key_file.read()
+            except Exception as e:
+                QMessageBox.critical(self, "Error", f"Error reading key file: {str(e)}")
+                return
+        elif manual_key:
+            try:
+                key = manual_key.encode()
+            except Exception as e:
+                QMessageBox.critical(self, "Error", f"Error processing manual key: {str(e)}")
+                return
+        else:
+            QMessageBox.warning(self, "Warning", "Please select a key file or enter a key manually!")
             return
             
         try:
-            key = key.encode()
-            Fernet(key)  # Validate key
-        except:
-            QMessageBox.critical(self, "Error", "Invalid key!")
-            return
-            
-        for item in selected_items:
-            file_path = item.text()
-            thread = FileEncryptionThread(file_path, key, 'decrypt')
-            thread.progress.connect(self.update_progress)
-            thread.finished.connect(lambda path: self.add_to_history(path, 'Decryption', 'Success'))
-            thread.error.connect(lambda error: self.add_to_history(file_path, 'Decryption', f'Error: {error}'))
-            thread.start()
-            
+            for item in selected_items:
+                file_path = item.text()
+                try:
+                    # Read encrypted file
+                    with open(file_path, 'rb') as f:
+                        # Read metadata (IV/nonce) first
+                        metadata = f.read(16)
+                        encrypted_data = f.read()
+                    
+                    # Try different decryption methods
+                    try:
+                        # Try Fernet first
+                        f = Fernet(key)
+                        decrypted_data = f.decrypt(encrypted_data)
+                    except Exception:
+                        try:
+                            # Try AES-256 (GCM)
+                            cipher = Cipher(algorithms.AES(key), modes.GCM(metadata))
+                            decryptor = cipher.decryptor()
+                            decrypted_data = decryptor.update(encrypted_data) + decryptor.finalize()
+                        except Exception:
+                            try:
+                                # Try ChaCha20-Poly1305
+                                cipher = Cipher(algorithms.ChaCha20(key, metadata), None)
+                                decryptor = cipher.decryptor()
+                                decrypted_data = decryptor.update(encrypted_data)
+                            except Exception as e:
+                                raise Exception(f"Failed to decrypt with any supported algorithm: {str(e)}")
+                    
+                    # Save decrypted file
+                    output_path = file_path.replace('.enc', '')
+                    with open(output_path, 'wb') as f:
+                        f.write(decrypted_data)
+                        
+                    self.add_to_history(file_path, 'Decryption', 'Success')
+                    
+                except Exception as e:
+                    self.add_to_history(file_path, 'Decryption', f'Error: {str(e)}')
+                    QMessageBox.warning(self, "Warning", f"Failed to decrypt {os.path.basename(file_path)}: {str(e)}")
+                    continue
+                    
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Decryption error: {str(e)}")
+
     def update_progress(self, value):
         self.progress_bar.setValue(value)
         
@@ -3006,10 +3073,22 @@ class CryptoApp(QMainWindow):
                 f"Failed to import passwords: {str(e)}"
             )
 
+    def browse_key_file(self):
+        key_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select Key File",
+            "",
+            "Key Files (*.key);;All Files (*.*)"
+        )
+        if key_path:
+            self.key_path_edit.setText(key_path)
+            # Clear manual key when file is selected
+            self.manual_key_edit.clear()
+
 if __name__ == '__main__':
     app = QApplication(sys.argv)
     
-    splash = QSplashScreen(QPixmap("splash.png"))
+    splash = QSplashScreen(QPixmap("/usr/share/icons/securonis/splash.png"))
     splash.show()
     
     window = CryptoApp()
@@ -3017,4 +3096,3 @@ if __name__ == '__main__':
     QTimer.singleShot(2000, lambda: (splash.close(), window.show()))
     
     sys.exit(app.exec_()) 
-
